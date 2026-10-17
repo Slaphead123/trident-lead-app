@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trident Lead Cards</title>
+<meta name="theme-color" content="#07182b"><meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Lead Cards">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#07182b;--card:#0d2a40;--fg:#e8ecf1;--mut:#9fb2c4;--teal:#6ff2e0;--line:#1d4258}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 Inter,system-ui,-apple-system,sans-serif;min-height:100vh;padding:max(24px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
+main{max-width:460px;margin:0 auto}
+.logo{width:72px;height:72px;margin:8px 0 12px}h1{font-size:1.5rem;margin:0 0 4px}p{margin:8px 0}.m{color:var(--mut);font-size:14px}
+ol{padding-left:20px;margin:12px 0}li{margin:8px 0}a{color:var(--teal)}
+input{width:100%;font:inherit;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg);margin:8px 0}
+button{width:100%;font:inherit;font-weight:700;padding:14px;border:0;border-radius:99px;background:var(--teal);color:#06202a;cursor:pointer}
+.err{color:#ff9b9b;min-height:1.4em}.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:14px 0}
+</style></head><body><main>
+<svg class="logo" viewBox="0 0 48 48" fill="none" stroke="#6ff2e0" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 7v34M11 13v10c0 7 6 11 13 11s13-4 13-11V13M11 13l-3.5 4.5M11 13l3.5 4.5M37 13l-3.5 4.5M37 13l3.5 4.5M24 7l-3.5 4.5M24 7l3.5 4.5M18 41h12"/></svg>
+<h1>Trident Lead Cards</h1>
+<p class="m">Set up once on this phone. Your leads stay in your private lead-finder repo; this page holds no lead data.</p>
+<div class="box"><b>1. Make a read-only key</b>
+<ol><li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub: new fine-grained token</a>.</li>
+<li>Name it Lead Cards phone. Choose an expiry (90 days or more).</li>
+<li>Repository access: only select repositories, then <b>lead-finder</b>.</li>
+<li>Permissions: Repository, <b>Contents: Read-only</b>. Nothing else.</li>
+<li>Generate and copy it.</li></ol></div>
+<div class="box"><b>2. Paste it here</b>
+<input id="t" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…">
+<div class="err" id="e" role="alert"></div><button id="go" type="button">Save and open my cards</button>
+<p class="m">The key is kept on this phone only. If it expires, open this page with <b>?reset</b> on the end and paste a new one.</p></div>
+<div class="box"><b>3. Add to Home Screen</b><p class="m">iPhone: Safari, Share, Add to Home Screen. Android: Chrome menu, Install app. It then opens full screen with its own icon.</p></div>
+</main>
+<script>
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('tla',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const kvSet=async(k,v)=>{const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})};
+const kvDel=async k=>{const d=await idb();return new Promise(res=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res})};
+window.TLA={save:cfg=>kvSet('cfg',cfg)};
+async function ready(){if(!('serviceWorker' in navigator))throw new Error('This browser cannot run the app. Use Safari on iPhone or Chrome on Android.');await navigator.serviceWorker.register('sw.js');await navigator.serviceWorker.ready}
+(async()=>{try{if(location.search.includes('reset'))await kvDel('cfg');await ready()}catch(e){document.getElementById('e').textContent=e.message}})();
+document.getElementById('go').onclick=async()=>{const t=document.getElementById('t').value.trim(),e=document.getElementById('e');e.textContent='';
+ if(!/^(github_pat_|ghp_)/.test(t)){e.textContent='That does not look like a GitHub token. It starts with github_pat_.';return}
+ try{await ready();await kvSet('cfg',{token:t});location.replace('data/lead_cards.html')}catch(x){e.textContent=x.message}};
+</script></body></html>
