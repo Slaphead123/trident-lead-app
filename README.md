@@ -19,3 +19,6 @@ Your leads stay in the private `lead-finder` repo (`results/`). The app reads th
 - New cards appear each Monday after the pipeline commits `results/`. Pull down to reload.
 - Token expired? Open the app link with `?reset` on the end and paste a new one.
 - Sent/won ticks live on that phone only; a second device starts empty.
+
+## Upload a logo or photos (phone)
+Open **Upload logo/photos** (button on the cards page, or `upload.html`). First time only: make a private repo `lead-uploads` and a second fine-grained token for **only that repo** with Contents: Read and write, and paste it. Pick the business, Logo or Photos, choose files, tick the rights box, Upload. Files are shrunk on the phone and saved as `<business>/logo.png` or `<business>/photo-….jpg`. This second token can write to `lead-uploads` only, never to `lead-finder`.
