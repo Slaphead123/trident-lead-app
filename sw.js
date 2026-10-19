@@ -1,8 +1,8 @@
 /* Trident Lead Cards: service worker.
    Serves /data/* from the PRIVATE lead-finder repo on GitHub using a read-only token that lives only on this phone (IndexedDB).
    Nothing about any lead is stored in this public app repo. Network first, cached copy when offline. */
-const SHELL = 'tla-shell-v1', DATA = 'tla-data-v1';
-const SHELL_FILES = ['./', 'index.html', 'shim.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
+const SHELL = 'tla-shell-v2', DATA = 'tla-data-v1';
+const SHELL_FILES = ['./', 'index.html', 'upload.html', 'upload.js', 'shim.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 const DEFAULT_REPO = 'Slaphead123/lead-finder', RESULTS_DIR = 'results';
 
 const idb = () => new Promise((res, rej) => { const r = indexedDB.open('tla', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -12,7 +12,7 @@ self.addEventListener('install', e => { e.waitUntil(caches.open(SHELL).then(c =>
 self.addEventListener('activate', e => { e.waitUntil((async () => { for (const k of await caches.keys()) if (![SHELL, DATA].includes(k)) await caches.delete(k); await self.clients.claim(); })()); });
 
 const HEAD_INJECT = shim => `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Lead Cards"><link rel="manifest" href="../manifest.webmanifest"><link rel="apple-touch-icon" href="../icon-180.png"><link rel="icon" href="../icon-192.png">
-<style>[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style><script>${shim}</script>`;
+<style>[hidden]{display:none!important}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style><script>${shim}</script><script>addEventListener('DOMContentLoaded',()=>{var a=document.createElement('a');a.href='../upload.html';a.textContent='Upload logo/photos';a.style.cssText='position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));z-index:99;background:#6ff2e0;color:#06202a;font:700 14px system-ui;padding:12px 16px;border-radius:99px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center';document.body.appendChild(a)})</script>`;
 
 let shimText = null;
 async function getShim() { if (!shimText) shimText = await (await fetch(new URL('shim.js', self.registration.scope))).text(); return shimText; }
