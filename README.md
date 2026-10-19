@@ -21,6 +21,4 @@ Your leads stay in the private `lead-finder` repo (`results/`). The app reads th
 - Sent/won ticks live on that phone only; a second device starts empty.
 
 ## Add a logo and photos (per lead card)
-Every lead card has **Add logo + photos**. Tap it, choose the logo and photos together (the app guesses which picture is the logo; tap one to change it), tick the rights box and Upload. First time only: make a private repo `lead-uploads` and a fine-grained token for **only that repo** (Contents: Read and write) and paste it. Files are shrunk on the phone and saved to `lead-uploads/<business>/`.
-
-**Refresh design** asks the lead-finder repo to rebuild that one design with the uploads (needs the `refresh-lead.yml` workflow and a second key that can only run workflows).
+Every lead card has **Add logo + photos**. Tap it, choose the logo and photos together (the app guesses which picture is the logo; tap one to change it), tick the rights box and Upload. Files are shrunk on the phone and saved to `uploads/<business>/` in the private lead-finder repo using the app's own key, which therefore needs **Contents: Read and write** (make a new fine-grained token for lead-finder only, open the app with `?reset`, paste it). A push to `uploads/` runs the "Refresh designs from phone uploads" workflow, which rebuilds only that design and updates its card image. Pull down to reload after a few minutes. No other keys, repos or buttons.

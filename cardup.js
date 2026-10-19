@@ -1,8 +1,8 @@
-/* Per-card upload and refresh for the Lead Cards page (loaded by the service worker into the cards page).
-   Upload: choose logo + photos in one go; the app guesses which one is the logo and you can change it. Everything goes to the PRIVATE lead-uploads repo
-   with a separate single-repo write key kept only on this phone. Refresh: asks the lead-finder repo to rebuild this one design (needs a second key that can only run workflows). */
+/* Per-card upload for the Lead Cards page (loaded by the service worker into the cards page).
+   Choose the logo and photos together; the app guesses the logo and you can change it. Files go to uploads/<business>/ in the private lead-finder repo using the
+   same key the app already holds (it needs Contents: Read and write). A push there rebuilds that design automatically; pull down to reload in a few minutes. */
 (function () {
-  var UPREPO = 'Slaphead123/lead-uploads', LFREPO = 'Slaphead123/lead-finder', WF = 'refresh-lead.yml';
+  var UPREPO = 'Slaphead123/lead-finder';
   var idb = function () { return new Promise(function (res, rej) { var r = indexedDB.open('tla', 1); r.onupgradeneeded = function () { r.result.createObjectStore('kv'); }; r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); }; }); };
   var kvGet = function (k) { return idb().then(function (d) { return new Promise(function (res) { var q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = function () { res(q.result); }; q.onerror = function () { res(undefined); }; }); }); };
   var kvSet = function (k, v) { return idb().then(function (d) { return new Promise(function (res, rej) { var t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = function () { rej(t.error); }; }); }); };
@@ -37,36 +37,27 @@
     return { b64: b64, ext: png ? 'png' : 'jpg' };
   }
   async function put(slug, name, b64, msg) {
-    var path = 'contents/' + encodeURIComponent(slug) + '/' + name, sha, ex = await gh(UPREPO, TOKEN, path); if (ex.ok) sha = (await ex.json()).sha;
+    var path = 'contents/uploads/' + encodeURIComponent(slug) + '/' + name, sha, ex = await gh(UPREPO, TOKEN, path); if (ex.ok) sha = (await ex.json()).sha;
     var r = await gh(UPREPO, TOKEN, path, { method: 'PUT', body: JSON.stringify({ message: msg, content: b64, sha: sha }) });
-    if (!r.ok) throw new Error(r.status === 404 ? 'Repo lead-uploads not found, or the key cannot write to it.' : (r.status === 401 || r.status === 403) ? 'GitHub refused the key. It needs Contents: Read and write on lead-uploads.' : 'GitHub error ' + r.status);
+    if (!r.ok) throw new Error((r.status === 401 || r.status === 403 || r.status === 404) ? 'Your saved key can only read. Open the app link with ?reset on the end and paste a key with Contents: Read and write on lead-finder.' : 'GitHub error ' + r.status);
   }
   var h = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   async function open(slug, name, statusEl) {
     cur = { slug: slug, name: name, el: statusEl }; files = []; logoIx = -1;
-    var cfg = await kvGet('upl'); TOKEN = (cfg && cfg.token) || ''; modal.classList.add('on'); render();
+    var cfg = await kvGet('cfg'); TOKEN = (cfg && cfg.token) || ''; modal.classList.add('on'); render();
   }
   function close() { modal.classList.remove('on'); modal.innerHTML = ''; }
   function render(msg, cls) {
-    if (!TOKEN) {
-      modal.innerHTML = '<div class="pn"><h2>One-time setup</h2><ol class="m" style="padding-left:18px"><li>On GitHub make a <b>private</b> repo named <b>lead-uploads</b>.</li><li>Make a <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained token</a> for <b>only</b> lead-uploads, Contents: <b>Read and write</b>.</li><li>Paste it here.</li></ol><input id="upk" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="github_pat_…"><p class="er" id="upe" role="alert"></p><button class="go" id="ups">Save key on this phone</button><button class="go x" id="upc">Cancel</button></div>';
-      modal.querySelector('#upc').onclick = close;
-      modal.querySelector('#ups').onclick = async function () { var t = modal.querySelector('#upk').value.trim(), e = modal.querySelector('#upe'); e.textContent = '';
-        if (!/^(github_pat_|ghp_)/.test(t)) { e.textContent = 'That does not look like a GitHub token. It starts with github_pat_.'; return; }
-        var r = await gh(UPREPO, t, 'contents/').catch(function () { return null; }); if (!r || (!r.ok && r.status !== 404)) { e.textContent = 'GitHub did not accept that key for lead-uploads.'; return; }
-        await kvSet('upl', { token: t }); TOKEN = t; render(); };
-      return;
-    }
+    if (!TOKEN) { modal.innerHTML = '<div class="pn"><h2>Key needed</h2><p class="m">Open the app link with <b>?reset</b> on the end and paste your key first.</p><button class="go" id="upc">Close</button></div>'; modal.querySelector('#upc').onclick = close; return; }
     var th = files.map(function (it, i) { return '<div class="t' + (i === logoIx ? ' lg' : '') + '"><img alt="" src="' + it.url + '"><button data-i="' + i + '">' + (i === logoIx ? 'Logo' : 'Photo') + '</button></div>'; }).join('');
     modal.innerHTML = '<div class="pn"><h2>' + h(cur.name) + '</h2><p class="m">Pick the logo and photos together. Tap a picture to mark it as the logo (only one).</p>'
       + '<label class="pick"><input id="upf" type="file" accept="image/*" multiple>Tap to choose from your photos or camera</label><div class="th">' + th + '</div>'
       + (files.length ? '<p class="m">' + (logoIx >= 0 ? '1 logo, ' + (files.length - 1) + ' photo' + (files.length - 1 === 1 ? '' : 's') : 'No logo marked, ' + files.length + ' photo' + (files.length === 1 ? '' : 's')) + '</p>' : '')
       + '<label class="chk"><input id="upr" type="checkbox"><span class="m">I have the right to use these: the business gave them to me, or I took them. Not copied from their website or Facebook.</span></label>'
-      + '<button class="go" id="upg" disabled>Upload</button><button class="go x" id="upc">Close</button><p class="' + (cls || 'm') + '" id="upm2" role="status" aria-live="polite">' + h(msg || '') + '</p><p class="m"><a href="#" id="upx">Change saved key</a></p></div>';
+      + '<button class="go" id="upg" disabled>Upload</button><button class="go x" id="upc">Close</button><p class="' + (cls || 'm') + '" id="upm2" role="status" aria-live="polite">' + h(msg || '') + '</p></div>';
     var go = modal.querySelector('#upg'), rt = modal.querySelector('#upr'), sync = function () { go.disabled = !(files.length && rt.checked); }; rt.onchange = sync;
     modal.querySelector('#upc').onclick = close;
-    modal.querySelector('#upx').onclick = async function (e) { e.preventDefault(); await kvDel('upl'); TOKEN = ''; render(); };
     modal.querySelector('#upf').onchange = async function (e) {
       var list = Array.prototype.slice.call(e.target.files), items = [];
       for (var i = 0; i < list.length; i++) { try { var b = await createImageBitmap(list[i]); items.push({ file: list[i], url: URL.createObjectURL(list[i]), w: b.width, h: b.height }); } catch (x) {} }
@@ -79,39 +70,18 @@
         for (var i = 0; i < files.length; i++) { var isL = i === logoIx, s = await shrink(files[i].file, isL);
           await put(cur.slug, isL ? 'logo.' + s.ext : 'photo-' + Date.now() + '-' + i + '.jpg', s.b64, (isL ? 'logo' : 'photo') + ' for ' + cur.name + '; rights confirmed on phone'); done++;
           modal.querySelector('#upm2').textContent = 'Uploaded ' + done + ' of ' + n + '…'; }
-        cur.el.textContent = 'Uploaded ' + (logoIx >= 0 ? '1 logo, ' : '') + (n - (logoIx >= 0 ? 1 : 0)) + ' photo(s). Tap Refresh design to rebuild.';
-        files = []; logoIx = -1; render('Done. ' + done + ' file' + (done === 1 ? '' : 's') + ' uploaded.', 'ok'); showRefresh(cur.slug);
+        cur.el.textContent = 'Uploaded. The design rebuilds by itself; pull down to reload in a few minutes.';
+        files = []; logoIx = -1; render('Done. ' + done + ' file' + (done === 1 ? '' : 's') + ' uploaded. The design rebuilds by itself; pull down to reload in a few minutes.', 'ok');
       } catch (e) { render((e && e.message) || 'Upload failed', 'er'); }
     };
   }
 
-  /* ---- refresh: ask lead-finder to rebuild one design with the uploads ---- */
-  async function refresh(slug, statusEl, btn) {
-    var cfg = await kvGet('rfr'), tok = cfg && cfg.token;
-    if (!tok) { tok = (prompt('One-time: paste a GitHub key that can only run workflows on lead-finder (Actions: Read and write).') || '').trim(); if (!/^(github_pat_|ghp_)/.test(tok)) { statusEl.textContent = 'No key saved.'; return; } await kvSet('rfr', { token: tok }); }
-    btn.disabled = true; statusEl.textContent = 'Asking for a rebuild…';
-    var t0 = Date.now() - 5000;
-    var r = await gh(LFREPO, tok, 'actions/workflows/' + WF + '/dispatches', { method: 'POST', body: JSON.stringify({ ref: 'main', inputs: { slug: slug } }) }).catch(function () { return null; });
-    if (!r || r.status !== 204) { statusEl.textContent = r && (r.status === 401 || r.status === 403) ? 'GitHub refused the rebuild key.' : r && r.status === 404 ? 'The rebuild workflow is not set up yet.' : 'Could not start the rebuild.'; btn.disabled = false; if (r && (r.status === 401 || r.status === 403)) await kvDel('rfr'); return; }
-    statusEl.textContent = 'Rebuilding… this takes a few minutes.';
-    for (var i = 0; i < 60; i++) {
-      await new Promise(function (res) { setTimeout(res, 10000); });
-      var q = await gh(LFREPO, tok, 'actions/workflows/' + WF + '/runs?event=workflow_dispatch&per_page=5').then(function (x) { return x.json(); }).catch(function () { return null; });
-      var run = q && (q.workflow_runs || []).filter(function (w) { return new Date(w.created_at).getTime() >= t0; })[0];
-      if (run && run.status === 'completed') { statusEl.textContent = run.conclusion === 'success' ? 'Rebuilt. Pull down to reload and see the new design.' : 'The rebuild failed. Open the run on GitHub to see why.'; btn.disabled = false; return; }
-    }
-    statusEl.textContent = 'Still running. Check again in a few minutes.'; btn.disabled = false;
-  }
-  function showRefresh(slug) { var b = document.querySelector('section[data-slug="' + slug + '"] .rfb'); if (b) b.hidden = false; }
-
   document.querySelectorAll('section[data-slug]').forEach(function (sec) {
     var row = document.createElement('div'); row.className = 'upr';
     var up = document.createElement('button'); up.type = 'button'; up.textContent = 'Add logo + photos';
-    var rf = document.createElement('button'); rf.type = 'button'; rf.className = 'rfb'; rf.textContent = 'Refresh design';
     var st = document.createElement('span'); st.className = 'ups'; st.setAttribute('role', 'status');
     up.onclick = function () { open(sec.dataset.slug, sec.dataset.name || sec.dataset.slug, st); };
-    rf.onclick = function () { refresh(sec.dataset.slug, st, rf); };
-    row.appendChild(up); row.appendChild(rf); row.appendChild(st);
+    row.appendChild(up); row.appendChild(st);
     var img = sec.querySelector('img.shot'); if (img && img.parentNode === sec) img.insertAdjacentElement('afterend', row); else sec.appendChild(row);
   });
 })();

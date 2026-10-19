@@ -1,7 +1,7 @@
 /* Trident Lead Cards: service worker.
    Serves /data/* from the PRIVATE lead-finder repo on GitHub using a read-only token that lives only on this phone (IndexedDB).
    Nothing about any lead is stored in this public app repo. Network first, cached copy when offline. */
-const SHELL = 'tla-shell-v3', DATA = 'tla-data-v1';
+const SHELL = 'tla-shell-v4', DATA = 'tla-data-v1';
 const SHELL_FILES = ['./', 'index.html', 'cardup.js', 'shim.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 const DEFAULT_REPO = 'Slaphead123/lead-finder', RESULTS_DIR = 'results';
 
