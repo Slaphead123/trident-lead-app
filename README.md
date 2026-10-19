@@ -20,5 +20,7 @@ Your leads stay in the private `lead-finder` repo (`results/`). The app reads th
 - Token expired? Open the app link with `?reset` on the end and paste a new one.
 - Sent/won ticks live on that phone only; a second device starts empty.
 
-## Upload a logo or photos (phone)
-Open **Upload logo/photos** (button on the cards page, or `upload.html`). First time only: make a private repo `lead-uploads` and a second fine-grained token for **only that repo** with Contents: Read and write, and paste it. Pick the business, Logo or Photos, choose files, tick the rights box, Upload. Files are shrunk on the phone and saved as `<business>/logo.png` or `<business>/photo-….jpg`. This second token can write to `lead-uploads` only, never to `lead-finder`.
+## Add a logo and photos (per lead card)
+Every lead card has **Add logo + photos**. Tap it, choose the logo and photos together (the app guesses which picture is the logo; tap one to change it), tick the rights box and Upload. First time only: make a private repo `lead-uploads` and a fine-grained token for **only that repo** (Contents: Read and write) and paste it. Files are shrunk on the phone and saved to `lead-uploads/<business>/`.
+
+**Refresh design** asks the lead-finder repo to rebuild that one design with the uploads (needs the `refresh-lead.yml` workflow and a second key that can only run workflows).
